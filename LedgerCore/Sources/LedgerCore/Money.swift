@@ -84,9 +84,8 @@ public enum Money {
         csvFormatter.string(from: rounded(value) as NSDecimalNumber) ?? "0.00"
     }
 
-    // Cached formatter, never mutated after construction. NumberFormatter is
-    // documented thread-safe for formatting, so shared read-only use is fine.
-    nonisolated(unsafe) private static let csvFormatter: NumberFormatter = {
+    // Cached formatter, never mutated after construction (NumberFormatter is Sendable).
+    private static let csvFormatter: NumberFormatter = {
         let f = NumberFormatter()
         f.locale = posix
         f.numberStyle = .decimal

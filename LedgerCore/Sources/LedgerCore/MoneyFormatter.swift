@@ -18,8 +18,8 @@ public enum MoneyFormatter {
         return sign + display(magnitude)
     }
 
-    // Cached, never mutated after construction (see note in `Money`).
-    nonisolated(unsafe) private static let formatter: NumberFormatter = {
+    // Cached, never mutated after construction (NumberFormatter is Sendable).
+    private static let formatter: NumberFormatter = {
         let f = NumberFormatter()
         f.locale = Money.posix
         f.numberStyle = .decimal

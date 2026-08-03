@@ -31,6 +31,10 @@ playground.xcworkspace
 
 .build/
 
+# XcodeGen: the .xcodeproj is generated from project.yml.
+# Run `xcodegen generate` to recreate it; project.yml is the source of truth.
+PersonalLedger.xcodeproj/
+
 # CocoaPods
 #
 # We recommend against adding the Pods directory to your .gitignore. However

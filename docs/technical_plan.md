@@ -2,22 +2,22 @@
 
 **Companion to:** [technical_rfc.md](./technical_rfc.md) (PRD v1.1)
 **Author:** Hazim (plan drafted with Claude Code)
-**Status:** Approved to start Phase 0
+**Status:** Phase 0 environment done — Xcode 26.6 installed, `LedgerCore` builds & 49 tests pass. Next: create the `.xcodeproj`.
 **Deployment choice:** **Free personal team** (sideload via Xcode; ~7-day provisioning expiry accepted)
 **Target:** iPhone 13 Pro, iOS 17+
 
 ---
 
-## 0. Environment status (as of drafting)
+## 0. Environment status (updated 2026-08-03)
 
 | Check | Result | Action |
 |---|---|---|
-| Swift toolchain | ✅ Swift 6.0.3 present | — |
-| Full Xcode.app | ❌ **Only Command Line Tools installed** | **Phase 0.1 — user must install** |
-| iOS Simulator runtime | ❌ Not available (needs Xcode) | Installed with Xcode |
-| Repo scaffold | Partial — RFC, README, Swift/Xcode `.gitignore` present; no `.xcodeproj` | Phase 0.2–0.3 |
+| Full Xcode.app | ✅ **Xcode 26.6 (17F113) installed & licensed** | — |
+| Swift toolchain | ✅ Swift 6.3.3 (target `arm64-apple-macosx26.0`) | — |
+| `LedgerCore` package | ✅ `swift build` clean, `swift test` **49/49 pass** | Verified core |
+| iOS app `.xcodeproj` | ❌ Not created yet — `PersonalLedger/` is folders only | **Next: Phase 0.2** |
 
-> **Hard blocker:** No `.xcodeproj` can be created or built until full Xcode is installed (see §Phase 0). Pure-Foundation logic files can be authored and compile-checked with the Command Line Tools in the meantime.
+> **Remaining gap:** the app target can't be built until the `.xcodeproj` exists. The pure `LedgerCore` layer is done and fully tested from the CLI; the SwiftUI/SwiftData/App Intents code is the Xcode-phase work.
 
 ---
 
