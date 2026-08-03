@@ -2,7 +2,7 @@
 
 **Companion to:** [technical_rfc.md](./technical_rfc.md) (PRD v1.1)
 **Author:** Hazim (plan drafted with Claude Code)
-**Status:** Phase 0 environment done — Xcode 26.6 installed, `LedgerCore` builds & 49 tests pass. Next: create the `.xcodeproj`.
+**Status:** Phase 1 (M1) core done — ledger view, add/edit sheet, two-step delete, sidebar all build & run on the iOS 26.5 simulator; tests green (LedgerCore 49, app-target 6 unit + 2 UI). Next: Phase 2 (CSV export).
 **Deployment choice:** **Free personal team** (sideload via Xcode; ~7-day provisioning expiry accepted)
 **Target:** iPhone 13 Pro, iOS 17+
 
