@@ -16,13 +16,15 @@ import Foundation
         #expect(result.value?.merchant == "Village Grocer")
     }
 
-    @Test func trimsMerchantToNilWhenBlank() {
+    @Test func requiresMerchant() {
         let draft = TransactionDraft(amountText: "5", source: "Cash", merchant: "   ")
-        #expect(TransactionValidator.validate(draft, locale: enUS).value?.merchant == nil)
+        let result = TransactionValidator.validate(draft, locale: enUS)
+        #expect(!result.isValid)
+        #expect(result.errors.contains(.merchantEmpty))
     }
 
     @Test func defaultsBlankCategoryToOther() {
-        let draft = TransactionDraft(amountText: "5", category: "  ", source: "Cash")
+        let draft = TransactionDraft(amountText: "5", category: "  ", source: "Cash", merchant: "Kopi")
         #expect(TransactionValidator.validate(draft, locale: enUS).value?.category == "Other")
     }
 

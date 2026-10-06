@@ -1,9 +1,11 @@
 import Foundation
 
-/// A field that failed validation (RFC §FR-2: amount and source are required).
+/// A field that failed validation. Amount, source, and (improvement #6) merchant
+/// are required for manual entry.
 public enum TransactionFieldError: Equatable, Sendable {
     case amountInvalid
     case sourceEmpty
+    case merchantEmpty
 }
 
 /// A draft that passed validation — carries the parsed, normalized fields ready
@@ -14,7 +16,7 @@ public struct ValidatedDraft: Equatable, Sendable {
     public let category: String
     public let source: String
     public let date: Date
-    public let merchant: String?
+    public let merchant: String
 
     /// Build a persistable `TransactionData`. Identity, entry method, and audit
     /// timestamp are supplied by the caller (the repository / intent), not the form.
@@ -60,11 +62,13 @@ public enum TransactionValidator {
         let source = draft.source.trimmingCharacters(in: .whitespacesAndNewlines)
         if source.isEmpty { errors.append(.sourceEmpty) }
 
+        let merchant = draft.merchant.trimmingCharacters(in: .whitespacesAndNewlines)
+        if merchant.isEmpty { errors.append(.merchantEmpty) }
+
         guard let amount, errors.isEmpty else {
             return DraftValidation(value: nil, errors: errors)
         }
 
-        let trimmedMerchant = draft.merchant.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedCategory = draft.category.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let validated = ValidatedDraft(
@@ -73,7 +77,7 @@ public enum TransactionValidator {
             category: trimmedCategory.isEmpty ? SpendingCategory.default.rawValue : trimmedCategory,
             source: source,
             date: draft.date,
-            merchant: trimmedMerchant.isEmpty ? nil : trimmedMerchant
+            merchant: merchant
         )
         return DraftValidation(value: validated, errors: [])
     }

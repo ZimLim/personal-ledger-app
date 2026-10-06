@@ -14,6 +14,8 @@ struct LedgerView: View {
     @State private var showingAddSheet = false
     @State private var editingTransaction: Transaction?
     @State private var pendingDelete: Transaction?
+    @State private var selectedSource: String?
+    @State private var sort: LedgerSort = .default
 
     private var repository: SwiftDataTransactionRepository {
         SwiftDataTransactionRepository(context: modelContext)
@@ -23,8 +25,23 @@ struct LedgerView: View {
         transactions.filter { YearMonth(date: $0.date) == selectedMonth }
     }
 
+    /// Month transactions after the payment-method filter + chosen sort (#1).
+    private var visibleTransactions: [Transaction] {
+        let models = monthTransactions
+        let byID = Dictionary(models.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return LedgerQuery.visible(models.map(\.data), source: selectedSource, sort: sort)
+            .compactMap { byID[$0.id] }
+    }
+
+    private var monthSources: [String] {
+        LedgerQuery.distinctSources(in: monthTransactions.map(\.data))
+    }
+
+    private var isFiltering: Bool { selectedSource != nil || sort != .default }
+
+    /// Running total reflects the current filter (equals the month total when unfiltered).
     private var total: Decimal {
-        LedgerTotals.total(of: monthTransactions.map(\.data))
+        LedgerTotals.total(of: visibleTransactions.map(\.data))
     }
 
     /// Distinct sources, most-recent first, for the Add form's quick chips.
@@ -33,6 +50,19 @@ struct LedgerView: View {
         var result: [String] = []
         for transaction in transactions where seen.insert(transaction.source).inserted {
             result.append(transaction.source)
+            if result.count == 6 { break }
+        }
+        return result
+    }
+
+    /// Recently used merchants, most-recent first, for the Add form's chips (#6).
+    private var recentMerchants: [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for transaction in transactions {
+            guard let merchant = transaction.merchant, !merchant.isEmpty,
+                  seen.insert(merchant).inserted else { continue }
+            result.append(merchant)
             if result.count == 6 { break }
         }
         return result
@@ -56,6 +86,8 @@ struct LedgerView: View {
                 Divider()
                 if monthTransactions.isEmpty {
                     EmptyStateView()
+                } else if visibleTransactions.isEmpty {
+                    EmptyStateView(message: "No transactions match this filter")
                 } else {
                     transactionList
                 }
@@ -68,6 +100,9 @@ struct LedgerView: View {
                     }
                     .accessibilityLabel("Ledger history")
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    filterSortMenu
+                }
             }
             .safeAreaInset(edge: .bottom) { addButton }
         }
@@ -75,7 +110,8 @@ struct LedgerView: View {
             TransactionSheetView(
                 mode: .add(defaultDate: Date()),
                 repository: repository,
-                recentSources: recentSources
+                recentSources: recentSources,
+                recentMerchants: recentMerchants
             )
         }
         .sheet(isPresented: editingBinding) {
@@ -83,7 +119,8 @@ struct LedgerView: View {
                 TransactionSheetView(
                     mode: .edit(editingTransaction),
                     repository: repository,
-                    recentSources: recentSources
+                    recentSources: recentSources,
+                    recentMerchants: recentMerchants
                 )
             }
         }
@@ -100,18 +137,39 @@ struct LedgerView: View {
         }
     }
 
+    private var filterSortMenu: some View {
+        Menu {
+            Picker("Sort", selection: $sort) {
+                ForEach(LedgerSort.allCases, id: \.self) { option in
+                    Text(option.label).tag(option)
+                }
+            }
+            Picker("Payment method", selection: $selectedSource) {
+                Text("All methods").tag(String?.none)
+                ForEach(monthSources, id: \.self) { source in
+                    Text(source).tag(String?.some(source))
+                }
+            }
+        } label: {
+            Image(systemName: isFiltering
+                  ? "line.3.horizontal.decrease.circle.fill"
+                  : "line.3.horizontal.decrease.circle")
+        }
+        .accessibilityLabel("Filter and sort")
+    }
+
     private var transactionList: some View {
         List {
-            ForEach(monthTransactions, id: \.persistentModelID) { transaction in
-                Button { editingTransaction = transaction } label: {
-                    LedgerRowView(transaction: transaction)
-                }
-                .buttonStyle(.plain)
-                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                    Button(role: .destructive) { pendingDelete = transaction } label: {
-                        Label("Delete", systemImage: "trash")
+            ForEach(visibleTransactions, id: \.persistentModelID) { transaction in
+                LedgerRowView(transaction: transaction)
+                    .contentShape(Rectangle())
+                    .onTapGesture { editingTransaction = transaction }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) { pendingDelete = transaction } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        .tint(.destructiveSwipe)
                     }
-                }
             }
         }
         .listStyle(.plain)

@@ -10,19 +10,27 @@ struct TransactionSheetView: View {
     @FocusState private var amountFocused: Bool
 
     private let recentSources: [String]
+    private let recentMerchants: [String]
 
-    init(mode: TransactionFormModel.Mode, repository: TransactionRepository, recentSources: [String]) {
+    init(
+        mode: TransactionFormModel.Mode,
+        repository: TransactionRepository,
+        recentSources: [String],
+        recentMerchants: [String]
+    ) {
         _model = State(initialValue: TransactionFormModel(mode: mode, repository: repository))
         self.recentSources = recentSources
+        self.recentMerchants = recentMerchants
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 amountSection
+                merchantSection
                 categorySection
                 sourceSection
-                detailsSection
+                dateSection
                 if model.isEditing { deleteSection }
             }
             .navigationTitle(model.isEditing ? "Edit Transaction" : "Add Transaction")
@@ -47,11 +55,19 @@ struct TransactionSheetView: View {
         Section {
             HStack {
                 Text("RM").foregroundStyle(.secondary)
+                // Cents-first entry (improvement #3): digits fill from the right,
+                // so 1-2-5-0 reads as 12.50. Reformats via onChange on a direct
+                // binding (robust for typing + UI tests).
                 TextField("0.00", text: $model.draft.amountText)
-                    .keyboardType(.decimalPad)
+                    .keyboardType(.numberPad)
                     .font(.title2)
                     .monospacedDigit()
                     .focused($amountFocused)
+                    .onChange(of: model.draft.amountText) { _, newValue in
+                        let digits = String(CentsAmount.digits(in: newValue).prefix(12))
+                        let formatted = CentsAmount.display(fromDigits: digits)
+                        if formatted != newValue { model.draft.amountText = formatted }
+                    }
             }
             Picker("Kind", selection: $model.draft.kind) {
                 Text("Expense").tag(TransactionKind.expense)
@@ -63,6 +79,13 @@ struct TransactionSheetView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    private var merchantSection: some View {
+        Section("Merchant") {
+            TextField("e.g. Village Grocer", text: $model.draft.merchant)
+            SuggestionChips(values: recentMerchants) { model.draft.merchant = $0 }
         }
     }
 
@@ -79,14 +102,13 @@ struct TransactionSheetView: View {
     private var sourceSection: some View {
         Section("Source") {
             TextField("e.g. Maybank debit, Cash", text: $model.draft.source)
-            SourceChips(sources: recentSources) { model.draft.source = $0 }
+            SuggestionChips(values: recentSources) { model.draft.source = $0 }
         }
     }
 
-    private var detailsSection: some View {
+    private var dateSection: some View {
         Section {
             DatePicker("Date", selection: $model.draft.date, displayedComponents: .date)
-            TextField("Merchant (optional)", text: $model.draft.merchant)
         }
     }
 

@@ -19,10 +19,17 @@ final class PersonalLedgerUITests: XCTestCase {
 
         app.buttons["Add Transaction"].tap()
 
+        // Cents-first entry: typing 1-2-5-0 reads as 12.50 (exact value covered
+        // by CentsAmount unit tests; here we just need a valid amount).
         let amount = app.textFields["0.00"]
         XCTAssertTrue(amount.waitForExistence(timeout: 3))
         amount.tap()
-        amount.typeText("12.50")
+        amount.typeText("1250")
+
+        // Merchant is required (#6).
+        let merchant = app.textFields["e.g. Village Grocer"]
+        merchant.tap()
+        merchant.typeText("Kopitiam")
 
         let source = app.textFields["e.g. Maybank debit, Cash"]
         source.tap()
@@ -30,6 +37,7 @@ final class PersonalLedgerUITests: XCTestCase {
 
         app.navigationBars.buttons["Add"].tap()
 
-        XCTAssertTrue(app.staticTexts["RM 12.50"].waitForExistence(timeout: 3))
+        // The new row shows the merchant; this confirms the add flow end-to-end.
+        XCTAssertTrue(app.staticTexts["Kopitiam"].waitForExistence(timeout: 3))
     }
 }

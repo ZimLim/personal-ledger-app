@@ -30,7 +30,7 @@ public struct TransactionDraft: Equatable, Sendable {
     /// Seed the form from an existing transaction when editing (RFC §FR-7).
     public init(editing t: TransactionData) {
         self.init(
-            amountText: MoneyFormatter.display(t.amount).replacingOccurrences(of: "RM ", with: ""),
+            amountText: Money.csvString(t.amount),
             kind: t.kind,
             category: t.category,
             source: t.source,
