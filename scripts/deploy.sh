@@ -66,11 +66,14 @@ case "$TARGET" in
     : "${DEVELOPMENT_TEAM:?Set your 10-char Team ID, e.g.  DEVELOPMENT_TEAM=ABCDE12345 ./scripts/deploy.sh device  (find it in Xcode > Settings > Accounts > your team).}"
 
     log "Finding a connected iPhone"
-    UDID="$(xcrun xctrace list devices 2>/dev/null \
-      | sed -n '/== Devices ==/,/== Devices Offline ==/p' \
-      | grep -E '\([0-9]+\.[0-9.]+\) \(' \
-      | sed -E 's/.*\(([^)]+)\)[[:space:]]*$/\1/' | head -1)" || true
-    [[ -n "$UDID" ]] || { err "No connected iPhone. Plug in via USB, unlock, tap Trust, and enable Developer Mode (Settings > Privacy & Security)."; exit 1; }
+    UDID="${DEVICE_UDID:-}"
+    if [[ -z "$UDID" ]]; then
+      UDID="$(xcrun devicectl list devices 2>/dev/null \
+        | awk 'tolower($0) ~ /physical/ && tolower($0) !~ /simulated/ {
+            for (i=1;i<=NF;i++) if ($i ~ /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}$/ || $i ~ /^[0-9A-Fa-f]{40}$/) { print $i; exit }
+          }')"
+    fi
+    [[ -n "$UDID" ]] || { err "No connected iPhone. Plug in via USB, unlock, tap Trust, and enable Developer Mode (Settings > Privacy & Security). You can also pass DEVICE_UDID=<udid>."; exit 1; }
     log "Device UDID: $UDID"
 
     log "Building + signing (team $DEVELOPMENT_TEAM)"
@@ -83,7 +86,18 @@ case "$TARGET" in
     log "Installing to device: $APP"
     xcrun devicectl device install app --device "$UDID" "$APP"
     log "Launching on device"
-    xcrun devicectl device process launch --device "$UDID" "$BUNDLE_ID"
+    LERR="$(mktemp)"
+    if ! xcrun devicectl device process launch --device "$UDID" "$BUNDLE_ID" 2>"$LERR"; then
+      if grep -qiE "not been explicitly trusted|invalid code signature" "$LERR"; then
+        err "Installed OK, but iOS needs you to TRUST this developer once before it can launch:"
+        err "  iPhone → Settings → General → VPN & Device Management → Developer App → tap your Apple ID → Trust"
+        err "Then tap the app icon on the phone, or re-run this command."
+      else
+        cat "$LERR" >&2
+      fi
+      rm -f "$LERR"; exit 0
+    fi
+    rm -f "$LERR"
     ;;
 
   *)
