@@ -2,7 +2,7 @@
 
 **Companion to:** [technical_rfc.md](./technical_rfc.md) (PRD v1.1)
 **Author:** Hazim (plan drafted with Claude Code)
-**Status:** Phase 1 (M1) core done — ledger view, add/edit sheet, two-step delete, sidebar all build & run on the iOS 26.5 simulator; tests green (LedgerCore 49, app-target 6 unit + 2 UI). Next: Phase 2 (CSV export).
+**Status:** Phase 1 (M1) and Phase 3 (M3) done — ledger, add/edit, delete, sidebar, plus the `Log Transaction` App Intent, setup guide and card mapping all build & run on the iOS 26.5 simulator; tests green (LedgerCore 85, app-target 19 unit + 3 UI). Phase 3 still needs its **on-device check** (a real Apple Pay tap — see Phase 3 below). Next: Phase 2 (CSV export), which was skipped over. Phase 6 (calendar view of daily totals) built 2026-10-10 — checked on the simulator, no tests yet (deferred by request).
 **Deployment choice:** **Free personal team** (sideload via Xcode; ~7-day provisioning expiry accepted)
 **Target:** iPhone 13 Pro, iOS 17+
 
@@ -51,11 +51,14 @@ LedgerCore/                          # Swift Package — pure logic (BUILT witho
     YearMonth.swift                  # (year,month) ledger identity, Comparable
     LedgerGrouping.swift             # group tx -> [LedgerMonth], newest first
     LedgerTotals.swift               # effective-amount sums (can be negative)
+    MonthCalendar.swift              # one DayTotal per day of a month + grid offset (Phase 6)
     Money.swift                      # parse/validate/round + CSV number format
     MoneyFormatter.swift             # "RM 23.50" display formatting
     CSVExporter.swift                # RFC 4180 rows, filenames, sort-for-export
     DuplicateGuard.swift             # automation dedupe (amount+merchant, ±60s)
-    CardSourceResolver.swift         # card name -> source label (§5.3)
+    CardSourceResolver.swift         # card name -> source label (§5.3), unmapped-card suggestions
+    AutomationAmount.swift           # trigger amount text ("RM 23.50") -> Decimal
+    AutomationLog.swift              # request -> log / skip duplicate / reject (pure decision)
     TransactionDraft.swift           # editable form state (value type)
     TransactionValidator.swift       # pure validation -> ValidatedDraft
   Tests/LedgerCoreTests/             # Swift Testing suites (bulk of coverage)
@@ -65,12 +68,14 @@ PersonalLedger/                      # iOS app target (NEEDS Xcode 26 to build)
   Models/         Transaction.swift                  # SwiftData @Model + <-> TransactionData mapper
   Persistence/    ModelContainerFactory, TransactionRepository (protocol + SwiftData impl)
   Features/
-    Ledger/       LedgerView, LedgerViewModel, LedgerRowView, RunningTotalHeader, EmptyStateView
+    Ledger/       LedgerView, LedgerViewModel, LedgerRowView, RunningTotalHeader, EmptyStateView,
+                  LedgerCalendarView (Phase 6)
     AddEdit/      TransactionSheetView, TransactionFormViewModel (wraps TransactionDraft),
                   AmountField, RefundToggle, CategoryPicker, SourceChips
     Sidebar/      LedgerSidebarView, SidebarViewModel
-    Automation/   LogTransactionIntent (thin wrapper), AutomationSetupView
-    Settings/     SettingsView, CardMappingStore (UserDefaults over CardSourceResolver)
+    Automation/   LogTransactionIntent (thin wrapper), TransactionLogService, AutomationSetupView
+    Settings/     SettingsView, CardMappingView, CardMappingFormView,
+                  CardMappingStore (UserDefaults over CardSourceResolver)
   Shared/         DesignTokens.swift                 # greyscale semantic colors
 PersonalLedgerUITests/               # critical-flow XCUITests
 ```
@@ -100,11 +105,21 @@ PersonalLedgerUITests/               # critical-flow XCUITests
 - `CSVExporter` → exact §5 header/rows: **effective (signed) amount**, ISO-8601 date, 2dp, **RFC 4180 quoting** for merchant/source. Unit tests: quoting, refund sign, empty merchant, ordering.
 - Per-month `spending-YYYY-MM.csv`; export-all `spending-all-YYYYMMDD.csv` (date-ascending). Toolbar + Settings entry points via `fileExporter`/share sheet.
 
-### Phase 3 (M3) — App Intent + automation `[HIGH]`
+### Phase 3 (M3) — App Intent + automation `[HIGH]` — **DONE 2026-10-08 (on-device check pending)**
 - `TransactionLogService` (pure, testable) holds the write + **dedupe** logic; `LogTransactionIntent` is a thin wrapper (in app target, `openAppWhenRun=false`).
 - Maps `card → source` via `CardMappingStore` (fallback `"Apple Pay – <card>"`); sets `entryMethod=.automation`, `category="Other"`, `kind=.expense`, `date=now`.
 - **Dedupe guard:** reject matching `(amount, merchant, ±60s)` automation entry — unit-tested.
 - `AutomationSetupView`: step-by-step guide + deep link to Shortcuts (iOS cannot install automations programmatically).
+
+**As built:**
+- The rules are split in two: the pure decision (`LedgerCore.AutomationLog.decide` → log / skip duplicate / reject) and the app-target `TransactionLogService`, which fetches the ±60s neighbours, applies the decision and saves. The intent only maps the decision to a result or an error.
+- **Deviation from RFC §5.2:** the intent's `Amount` parameter is a `String`, not a `Double`. The trigger passes text with a currency symbol ("RM 23.50", "ARS 23,400.00"); `LedgerCore.AutomationAmount` parses it, so the amount stays `Decimal` end-to-end. Empty, zero, negative, multi-number or oddly separated text (".50", "23 50") is rejected and the run fails with a readable message instead of logging a guess.
+- **One shared `ModelContainer`** (`ModelContainerFactory.shared`) serves both the UI scene and the intent, at SwiftData's default store location, so automation writes show up in a live `@Query` and existing data is untouched.
+- Settings is reached from the foot of the history drawer: **Set up auto-logging** (the guide) and **Card names** (the mapping). Cards already logged under the fallback label are listed as one-tap suggestions, so the exact card name never has to be typed.
+- Deep link is `shortcuts://create-automation` (opens the trigger list on iOS 26.5; falls back to `shortcuts://`). On iOS 26 the trigger is named **Wallet**; it was **Transaction** on iOS 17–18.
+
+**Verified on the simulator:** the real intent run in-process against the live store (logs a row, skips the repeat, rejects a zero amount); Shortcuts lists the **Log Transaction** action; screenshots in `docs/screenshots/2026-10-08/`.
+**Not verifiable without the phone:** the Wallet trigger itself, the exact text it passes for Amount/Merchant/Card, and the background launch when the app is not running.
 
 ### Phase 4 (M4) — Polish `[MEDIUM]`
 - Greyscale `DesignTokens` (semantic light/dark), Dynamic Type, safe-area handling, accessibility labels, dedupe hardening.
@@ -118,6 +133,32 @@ PersonalLedgerUITests/               # critical-flow XCUITests
 6. iPhone → Settings → General → VPN & Device Management → **trust** developer cert → launch.
 7. Follow in-app setup guide to create the Shortcuts "Transaction" automation (**real device only** — Simulator has no Wallet/Apple Pay).
 8. **Free-team upkeep:** the app stops launching after ~7 days; re-run from Xcode (**Cmd+R**) to refresh the provisioning profile. Upgrade to the paid Program later if weekly redeploys become annoying or TestFlight/OTA is wanted.
+
+### Phase 6 — Calendar view (daily totals) `[MEDIUM]` — **BUILT 2026-10-10 (toggle tap and tests pending)**
+
+A month calendar on the ledger screen showing what was spent on each day. This extends RFC v1.1 — it is not in the FR list. It is a per-day view of the month total the ledger already shows, and it stores nothing new.
+
+**Behaviour:**
+- A toggle button at the top right of the ledger screen (right of the filter/sort menu) swaps the transaction list for the calendar in place, and back. The pinned month header, running total, Add button and history drawer stay as they are. The app opens on the list.
+- The calendar is a 7-column grid of **every day in the selected month**, under a weekday header. The week starts on the device calendar's first weekday.
+- Each day shows the sum of that day's **effective amounts** (refunds subtract), so the days add up to the month total. A refund-only day is negative.
+- A day with nothing logged shows `RM 0.00`, and that includes days still to come. A future-dated entry (RFC §8) counts on its own day.
+- The payment-method filter applies to the calendar; sort has no effect on it.
+- Display only: tapping a day does nothing in this pass.
+
+**Pieces:**
+- `LedgerCore/MonthCalendar.swift` — `MonthCalendar(month:transactions:calendar:)` gives one `DayTotal` (day, total) per day of the month plus `leadingBlanks` (the empty cells before day 1). `weekdaySymbols(calendar:)` gives the header in first-weekday order. Pure, built on `YearMonth` and `effectiveAmount`.
+- `Features/Ledger/LedgerCalendarView.swift` — the grid. Amounts via `MoneyFormatter.displayEffective` with `.monospacedDigit()`, zero days in secondary grey, today outlined.
+- `LedgerView` — a `showingCalendar` state and the toolbar toggle (`calendar` ↔ `list.bullet`).
+
+**Tests:** deferred at the owner's request (2026-10-10). No unit or UI tests are written for this phase until asked; it is verified by a clean build and a manual check on the simulator.
+
+**As built:**
+- The weekday header and the day grid are two separate grids, and the day grid is a single `ForEach` over slots (blanks, then days). With three sibling `ForEach` blocks in one `LazyVGrid`, their overlapping integer IDs made the grid drop days 1–6.
+- The weekday header uses short names ("Sun", "Mon", …).
+
+**Verified on the simulator (iOS 26.5, October 2026):** all 31 days render, day 1 sits under Thursday, today is outlined, and the day cells (0.22 + 12.62 + 48.62) add up to the header's RM 61.46. Light and dark screenshots are in `docs/screenshots/2026-10-10/`.
+**Not verified:** tapping the toggle (this session could not send taps to the simulator; the calendar screenshots came from a temporary build that opened on the calendar), a month with no transactions, a month under a payment-method filter, and a refund-only day.
 
 ---
 

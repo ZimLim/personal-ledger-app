@@ -7,6 +7,6 @@ struct PersonalLedgerApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: Transaction.self)
+        .modelContainer(ModelContainerFactory.shared)
     }
 }

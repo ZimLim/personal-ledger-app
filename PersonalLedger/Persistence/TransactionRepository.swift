@@ -11,6 +11,9 @@ protocol TransactionRepository {
     func update(_ transaction: Transaction, with data: TransactionData) throws
     func delete(_ transaction: Transaction) throws
     func allData() throws -> [TransactionData]
+    /// Transactions dated within the closed range, newest first (the automation
+    /// dedupe window).
+    func data(from start: Date, through end: Date) throws -> [TransactionData]
     /// Distinct sources, most-recently-used first (for the Add form's quick chips).
     func distinctSources(limit: Int) throws -> [String]
 }
@@ -40,6 +43,14 @@ final class SwiftDataTransactionRepository: TransactionRepository {
 
     func allData() throws -> [TransactionData] {
         let descriptor = FetchDescriptor<Transaction>(
+            sortBy: [SortDescriptor(\.date, order: .reverse)]
+        )
+        return try context.fetch(descriptor).map(\.data)
+    }
+
+    func data(from start: Date, through end: Date) throws -> [TransactionData] {
+        let descriptor = FetchDescriptor<Transaction>(
+            predicate: #Predicate { $0.date >= start && $0.date <= end },
             sortBy: [SortDescriptor(\.date, order: .reverse)]
         )
         return try context.fetch(descriptor).map(\.data)

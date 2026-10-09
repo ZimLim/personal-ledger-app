@@ -8,12 +8,7 @@ import LedgerCore
 @Suite struct TransactionRepositoryTests {
 
     private func makeRepo() throws -> (SwiftDataTransactionRepository, ModelContext) {
-        let container = try ModelContainer(
-            for: Transaction.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-        )
-        let context = ModelContext(container)
-        return (SwiftDataTransactionRepository(context: context), context)
+        try makeInMemoryRepository()
     }
 
     @Test func createThenFetch() throws {
@@ -53,5 +48,18 @@ import LedgerCore
         #expect(reloaded.amount == 9)
         #expect(reloaded.source == "Maybank")
         #expect(reloaded.entryMethod == .automation)
+    }
+
+    /// The automation dedupe window is a closed date range.
+    @Test func dataInRangeIncludesBothBoundsAndNothingOutside() throws {
+        let (repo, _) = try makeRepo()
+        let centre = Date(timeIntervalSince1970: 1_790_000_000)
+        for (amount, offset) in [(1, -61.0), (2, -60.0), (3, 0.0), (4, 60.0), (5, 61.0)] {
+            try repo.create(TransactionData(
+                amount: Decimal(amount), source: "Cash", date: centre.addingTimeInterval(offset)
+            ))
+        }
+        let hits = try repo.data(from: centre.addingTimeInterval(-60), through: centre.addingTimeInterval(60))
+        #expect(Set(hits.map(\.amount)) == [2, 3, 4])
     }
 }

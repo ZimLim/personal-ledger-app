@@ -34,6 +34,8 @@ These are encoded across `LedgerCore` and mandated by the RFC; violating them co
 - **`category` is stored as a `String`** (not the `SpendingCategory` enum) for additive v2 migration; **`entryMethod` is never editable** after creation.
 - **CSV** (`CSVExporter`) emits the *effective signed* amount and uses RFC 4180 quoting for free-text fields — see the exact column spec in RFC §FR-5.
 - **`LogTransactionIntent` must stay in the app target** (not a separate extension). This keeps it in-process with the app's own SwiftData store, avoiding an App Group — which a **free** Apple team cannot provision. Do not add App Group capability while on the free team.
+- **The intent's `Amount` parameter is a `String`, on purpose** (the RFC §5.2 snippet says `Double`). The Wallet trigger passes text like "RM 23.50"; `LedgerCore.AutomationAmount` parses it so money never passes through `Double`. Do not "fix" it back to a number type.
+- **The UI scene and the intent share one container, `ModelContainerFactory.shared`**, at SwiftData's default store location. A second container on the same store would not refresh the live `@Query`, and a different location would orphan the data already on the phone.
 
 ## Commands
 
@@ -42,7 +44,7 @@ Core logic (runs from the CLI, no Xcode project needed — this is where you ver
 ```bash
 cd LedgerCore
 swift build                                  # build the package
-swift test                                   # run all Swift Testing suites (currently 49 tests, 8 suites)
+swift test                                   # run all Swift Testing suites (currently 85 tests, 12 suites)
 swift test --filter MoneyTests               # one suite
 swift test --filter MoneyTests/parsesPlainDecimal   # one test
 ```
