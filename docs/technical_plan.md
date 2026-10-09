@@ -2,7 +2,7 @@
 
 **Companion to:** [technical_rfc.md](./technical_rfc.md) (PRD v1.1)
 **Author:** Hazim (plan drafted with Claude Code)
-**Status:** Phase 1 (M1) core done — ledger view, add/edit sheet, two-step delete, sidebar all build & run on the iOS 26.5 simulator; tests green (LedgerCore 49, app-target 6 unit + 2 UI). Next: Phase 2 (CSV export).
+**Status:** Phase 1 (M1) and Phase 3 (M3) done — ledger, add/edit, delete, sidebar, plus the `Log Transaction` App Intent, setup guide and card mapping all build & run on the iOS 26.5 simulator; tests green (LedgerCore 85, app-target 19 unit + 3 UI). Phase 3 still needs its **on-device check** (a real Apple Pay tap — see Phase 3 below). Next: Phase 2 (CSV export), which was skipped over.
 **Deployment choice:** **Free personal team** (sideload via Xcode; ~7-day provisioning expiry accepted)
 **Target:** iPhone 13 Pro, iOS 17+
 
@@ -55,7 +55,9 @@ LedgerCore/                          # Swift Package — pure logic (BUILT witho
     MoneyFormatter.swift             # "RM 23.50" display formatting
     CSVExporter.swift                # RFC 4180 rows, filenames, sort-for-export
     DuplicateGuard.swift             # automation dedupe (amount+merchant, ±60s)
-    CardSourceResolver.swift         # card name -> source label (§5.3)
+    CardSourceResolver.swift         # card name -> source label (§5.3), unmapped-card suggestions
+    AutomationAmount.swift           # trigger amount text ("RM 23.50") -> Decimal
+    AutomationLog.swift              # request -> log / skip duplicate / reject (pure decision)
     TransactionDraft.swift           # editable form state (value type)
     TransactionValidator.swift       # pure validation -> ValidatedDraft
   Tests/LedgerCoreTests/             # Swift Testing suites (bulk of coverage)
@@ -69,8 +71,9 @@ PersonalLedger/                      # iOS app target (NEEDS Xcode 26 to build)
     AddEdit/      TransactionSheetView, TransactionFormViewModel (wraps TransactionDraft),
                   AmountField, RefundToggle, CategoryPicker, SourceChips
     Sidebar/      LedgerSidebarView, SidebarViewModel
-    Automation/   LogTransactionIntent (thin wrapper), AutomationSetupView
-    Settings/     SettingsView, CardMappingStore (UserDefaults over CardSourceResolver)
+    Automation/   LogTransactionIntent (thin wrapper), TransactionLogService, AutomationSetupView
+    Settings/     SettingsView, CardMappingView, CardMappingFormView,
+                  CardMappingStore (UserDefaults over CardSourceResolver)
   Shared/         DesignTokens.swift                 # greyscale semantic colors
 PersonalLedgerUITests/               # critical-flow XCUITests
 ```
@@ -100,11 +103,21 @@ PersonalLedgerUITests/               # critical-flow XCUITests
 - `CSVExporter` → exact §5 header/rows: **effective (signed) amount**, ISO-8601 date, 2dp, **RFC 4180 quoting** for merchant/source. Unit tests: quoting, refund sign, empty merchant, ordering.
 - Per-month `spending-YYYY-MM.csv`; export-all `spending-all-YYYYMMDD.csv` (date-ascending). Toolbar + Settings entry points via `fileExporter`/share sheet.
 
-### Phase 3 (M3) — App Intent + automation `[HIGH]`
+### Phase 3 (M3) — App Intent + automation `[HIGH]` — **DONE 2026-10-08 (on-device check pending)**
 - `TransactionLogService` (pure, testable) holds the write + **dedupe** logic; `LogTransactionIntent` is a thin wrapper (in app target, `openAppWhenRun=false`).
 - Maps `card → source` via `CardMappingStore` (fallback `"Apple Pay – <card>"`); sets `entryMethod=.automation`, `category="Other"`, `kind=.expense`, `date=now`.
 - **Dedupe guard:** reject matching `(amount, merchant, ±60s)` automation entry — unit-tested.
 - `AutomationSetupView`: step-by-step guide + deep link to Shortcuts (iOS cannot install automations programmatically).
+
+**As built:**
+- The rules are split in two: the pure decision (`LedgerCore.AutomationLog.decide` → log / skip duplicate / reject) and the app-target `TransactionLogService`, which fetches the ±60s neighbours, applies the decision and saves. The intent only maps the decision to a result or an error.
+- **Deviation from RFC §5.2:** the intent's `Amount` parameter is a `String`, not a `Double`. The trigger passes text with a currency symbol ("RM 23.50", "ARS 23,400.00"); `LedgerCore.AutomationAmount` parses it, so the amount stays `Decimal` end-to-end. Empty, zero, negative, multi-number or oddly separated text (".50", "23 50") is rejected and the run fails with a readable message instead of logging a guess.
+- **One shared `ModelContainer`** (`ModelContainerFactory.shared`) serves both the UI scene and the intent, at SwiftData's default store location, so automation writes show up in a live `@Query` and existing data is untouched.
+- Settings is reached from the foot of the history drawer: **Set up auto-logging** (the guide) and **Card names** (the mapping). Cards already logged under the fallback label are listed as one-tap suggestions, so the exact card name never has to be typed.
+- Deep link is `shortcuts://create-automation` (opens the trigger list on iOS 26.5; falls back to `shortcuts://`). On iOS 26 the trigger is named **Wallet**; it was **Transaction** on iOS 17–18.
+
+**Verified on the simulator:** the real intent run in-process against the live store (logs a row, skips the repeat, rejects a zero amount); Shortcuts lists the **Log Transaction** action; screenshots in `docs/screenshots/2026-10-08/`.
+**Not verifiable without the phone:** the Wallet trigger itself, the exact text it passes for Amount/Merchant/Card, and the background launch when the app is not running.
 
 ### Phase 4 (M4) — Polish `[MEDIUM]`
 - Greyscale `DesignTokens` (semantic light/dark), Dynamic Type, safe-area handling, accessibility labels, dedupe hardening.

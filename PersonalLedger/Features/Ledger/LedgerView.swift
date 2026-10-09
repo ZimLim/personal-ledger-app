@@ -12,6 +12,7 @@ struct LedgerView: View {
     @State private var selectedMonth = YearMonth(date: Date())
     @State private var showingSidebar = false
     @State private var showingAddSheet = false
+    @State private var showingSettings = false
     @State private var editingTransaction: Transaction?
     @State private var pendingDelete: Transaction?
     @State private var selectedSource: String?
@@ -124,6 +125,7 @@ struct LedgerView: View {
                 )
             }
         }
+        .sheet(isPresented: $showingSettings) { SettingsView() }
         .confirmationDialog(
             "Delete this transaction?",
             isPresented: deleteBinding,
@@ -191,10 +193,18 @@ struct LedgerView: View {
                 .ignoresSafeArea()
                 .onTapGesture { showingSidebar = false }
                 .transition(.opacity)
-            LedgerSidebarView(transactions: transactions, selectedMonth: selectedMonth) { month in
-                selectedMonth = month
-                showingSidebar = false
-            }
+            LedgerSidebarView(
+                transactions: transactions,
+                selectedMonth: selectedMonth,
+                onSelect: { month in
+                    selectedMonth = month
+                    showingSidebar = false
+                },
+                onOpenSettings: {
+                    showingSidebar = false
+                    showingSettings = true
+                }
+            )
             .frame(width: 300)
             .transition(.move(edge: .leading))
         }

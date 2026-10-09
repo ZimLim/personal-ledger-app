@@ -40,4 +40,21 @@ final class PersonalLedgerUITests: XCTestCase {
         // The new row shows the merchant; this confirms the add flow end-to-end.
         XCTAssertTrue(app.staticTexts["Kopitiam"].waitForExistence(timeout: 3))
     }
+
+    /// The Apple Pay setup guide and card mapping are reachable from the history
+    /// drawer's Settings entry (RFC §FR-4, §5.3).
+    func testSettingsLeadsToAutomationGuideAndCardNames() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        app.buttons["Ledger history"].tap()
+        app.buttons["Settings"].tap()
+
+        app.buttons["Set up auto-logging"].tap()
+        XCTAssertTrue(app.buttons["Open Shortcuts"].waitForExistence(timeout: 3))
+
+        app.navigationBars.buttons["Settings"].tap()
+        app.buttons["Card names"].tap()
+        XCTAssertTrue(app.buttons["Add Card"].waitForExistence(timeout: 3))
+    }
 }

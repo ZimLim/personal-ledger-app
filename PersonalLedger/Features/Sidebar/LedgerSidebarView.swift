@@ -3,11 +3,13 @@ import LedgerCore
 
 /// Slide-over history drawer (RFC §FR-3): months grouped by year, newest first,
 /// each showing its total. Only months with transactions are listed, plus the
-/// current month (always). Selecting a month switches the ledger.
+/// current month (always). Selecting a month switches the ledger. Settings is
+/// reached from the foot of the drawer.
 struct LedgerSidebarView: View {
     let transactions: [Transaction]
     let selectedMonth: YearMonth
     let onSelect: (YearMonth) -> Void
+    let onOpenSettings: () -> Void
 
     private var currentMonth: YearMonth { YearMonth(date: Date()) }
 
@@ -42,6 +44,14 @@ struct LedgerSidebarView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            Divider()
+            Button(action: onOpenSettings) {
+                Label("Settings", systemImage: "gearshape")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color(.systemBackground))
