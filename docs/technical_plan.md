@@ -2,7 +2,7 @@
 
 **Companion to:** [technical_rfc.md](./technical_rfc.md) (PRD v1.1)
 **Author:** Hazim (plan drafted with Claude Code)
-**Status:** Phase 1 (M1) and Phase 3 (M3) done — ledger, add/edit, delete, sidebar, plus the `Log Transaction` App Intent, setup guide and card mapping all build & run on the iOS 26.5 simulator; tests green (LedgerCore 85, app-target 19 unit + 3 UI). Phase 3 still needs its **on-device check** (a real Apple Pay tap — see Phase 3 below). Next: Phase 2 (CSV export), which was skipped over.
+**Status:** Phase 1 (M1) and Phase 3 (M3) done — ledger, add/edit, delete, sidebar, plus the `Log Transaction` App Intent, setup guide and card mapping all build & run on the iOS 26.5 simulator; tests green (LedgerCore 85, app-target 19 unit + 3 UI). Phase 3 still needs its **on-device check** (a real Apple Pay tap — see Phase 3 below). Next: Phase 2 (CSV export), which was skipped over. Phase 6 (calendar view of daily totals) built 2026-10-10 — checked on the simulator, no tests yet (deferred by request).
 **Deployment choice:** **Free personal team** (sideload via Xcode; ~7-day provisioning expiry accepted)
 **Target:** iPhone 13 Pro, iOS 17+
 
@@ -51,6 +51,7 @@ LedgerCore/                          # Swift Package — pure logic (BUILT witho
     YearMonth.swift                  # (year,month) ledger identity, Comparable
     LedgerGrouping.swift             # group tx -> [LedgerMonth], newest first
     LedgerTotals.swift               # effective-amount sums (can be negative)
+    MonthCalendar.swift              # one DayTotal per day of a month + grid offset (Phase 6)
     Money.swift                      # parse/validate/round + CSV number format
     MoneyFormatter.swift             # "RM 23.50" display formatting
     CSVExporter.swift                # RFC 4180 rows, filenames, sort-for-export
@@ -67,7 +68,8 @@ PersonalLedger/                      # iOS app target (NEEDS Xcode 26 to build)
   Models/         Transaction.swift                  # SwiftData @Model + <-> TransactionData mapper
   Persistence/    ModelContainerFactory, TransactionRepository (protocol + SwiftData impl)
   Features/
-    Ledger/       LedgerView, LedgerViewModel, LedgerRowView, RunningTotalHeader, EmptyStateView
+    Ledger/       LedgerView, LedgerViewModel, LedgerRowView, RunningTotalHeader, EmptyStateView,
+                  LedgerCalendarView (Phase 6)
     AddEdit/      TransactionSheetView, TransactionFormViewModel (wraps TransactionDraft),
                   AmountField, RefundToggle, CategoryPicker, SourceChips
     Sidebar/      LedgerSidebarView, SidebarViewModel
@@ -131,6 +133,32 @@ PersonalLedgerUITests/               # critical-flow XCUITests
 6. iPhone → Settings → General → VPN & Device Management → **trust** developer cert → launch.
 7. Follow in-app setup guide to create the Shortcuts "Transaction" automation (**real device only** — Simulator has no Wallet/Apple Pay).
 8. **Free-team upkeep:** the app stops launching after ~7 days; re-run from Xcode (**Cmd+R**) to refresh the provisioning profile. Upgrade to the paid Program later if weekly redeploys become annoying or TestFlight/OTA is wanted.
+
+### Phase 6 — Calendar view (daily totals) `[MEDIUM]` — **BUILT 2026-10-10 (toggle tap and tests pending)**
+
+A month calendar on the ledger screen showing what was spent on each day. This extends RFC v1.1 — it is not in the FR list. It is a per-day view of the month total the ledger already shows, and it stores nothing new.
+
+**Behaviour:**
+- A toggle button at the top right of the ledger screen (right of the filter/sort menu) swaps the transaction list for the calendar in place, and back. The pinned month header, running total, Add button and history drawer stay as they are. The app opens on the list.
+- The calendar is a 7-column grid of **every day in the selected month**, under a weekday header. The week starts on the device calendar's first weekday.
+- Each day shows the sum of that day's **effective amounts** (refunds subtract), so the days add up to the month total. A refund-only day is negative.
+- A day with nothing logged shows `RM 0.00`, and that includes days still to come. A future-dated entry (RFC §8) counts on its own day.
+- The payment-method filter applies to the calendar; sort has no effect on it.
+- Display only: tapping a day does nothing in this pass.
+
+**Pieces:**
+- `LedgerCore/MonthCalendar.swift` — `MonthCalendar(month:transactions:calendar:)` gives one `DayTotal` (day, total) per day of the month plus `leadingBlanks` (the empty cells before day 1). `weekdaySymbols(calendar:)` gives the header in first-weekday order. Pure, built on `YearMonth` and `effectiveAmount`.
+- `Features/Ledger/LedgerCalendarView.swift` — the grid. Amounts via `MoneyFormatter.displayEffective` with `.monospacedDigit()`, zero days in secondary grey, today outlined.
+- `LedgerView` — a `showingCalendar` state and the toolbar toggle (`calendar` ↔ `list.bullet`).
+
+**Tests:** deferred at the owner's request (2026-10-10). No unit or UI tests are written for this phase until asked; it is verified by a clean build and a manual check on the simulator.
+
+**As built:**
+- The weekday header and the day grid are two separate grids, and the day grid is a single `ForEach` over slots (blanks, then days). With three sibling `ForEach` blocks in one `LazyVGrid`, their overlapping integer IDs made the grid drop days 1–6.
+- The weekday header uses short names ("Sun", "Mon", …).
+
+**Verified on the simulator (iOS 26.5, October 2026):** all 31 days render, day 1 sits under Thursday, today is outlined, and the day cells (0.22 + 12.62 + 48.62) add up to the header's RM 61.46. Light and dark screenshots are in `docs/screenshots/2026-10-10/`.
+**Not verified:** tapping the toggle (this session could not send taps to the simulator; the calendar screenshots came from a temporary build that opened on the calendar), a month with no transactions, a month under a payment-method filter, and a refund-only day.
 
 ---
 
