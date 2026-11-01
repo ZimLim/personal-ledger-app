@@ -1,5 +1,6 @@
 import Foundation
 import LedgerCore
+import os
 
 /// The automation write path (RFC §FR-4): asks `LedgerCore.AutomationLog` what to
 /// do with a trigger's raw values, then persists the entry if it should be
@@ -10,6 +11,8 @@ struct TransactionLogService {
     private let repository: TransactionRepository
     private let cardMapping: CardMappingStore
     private let now: () -> Date
+
+    private static let logger = Logger(subsystem: "com.hazim.personalledger", category: "TransactionLogService")
 
     init(
         repository: TransactionRepository,
@@ -32,11 +35,26 @@ struct TransactionLogService {
             through: timestamp.addingTimeInterval(window)
         )
         let decision = AutomationLog.decide(
-            request, existing: nearby, cardMapping: cardMapping.mapping, now: timestamp
+            request,
+            existing: nearby,
+            history: loadHistory(),
+            cardMapping: cardMapping.mapping,
+            now: timestamp
         )
         if case .log(let entry) = decision {
             try repository.create(entry)
         }
         return decision
+    }
+
+    /// A failed lookup must never cost a payment record, so it degrades to no
+    /// suggestions and the entry saves under the default category.
+    private func loadHistory() -> [TransactionData] {
+        do {
+            return try repository.allData()
+        } catch {
+            Self.logger.error("Category history unavailable: \(error.localizedDescription, privacy: .public)")
+            return []
+        }
     }
 }

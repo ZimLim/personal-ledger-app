@@ -83,7 +83,7 @@ A **ledger is not a stored entity**. It is a derived grouping: transactions buck
 
 ### 3.3 Categories
 
-Fixed v1 list (single selection): **Food, Groceries, Transport/Gas, Entertainment, Shopping, Bills & Utilities, Health, Travel, Other**. Automation-logged entries default to `Other` (the Shortcuts Transaction trigger does not reliably supply a category) and can be recategorized by tapping the row. A user-editable category list is a v2 candidate; storing `category` as a string keeps that migration additive.
+Fixed v1 list (single selection): **Food, Groceries, Transport/Gas, Entertainment, Shopping, Bills & Utilities, Health, Travel, Other**. A new entry's category is suggested from the newest non-`Other` transaction at the same merchant (trimmed, case-insensitive match), falling back to `Other` for a new merchant. This applies to manual entry and to automation-logged entries (the Shortcuts Transaction trigger does not reliably supply a category), which can be recategorized by tapping the row. A user-editable category list is a v2 candidate; storing `category` as a string keeps that migration additive.
 
 ---
 
@@ -104,7 +104,7 @@ Fixed v1 list (single selection): **Food, Groceries, Transport/Gas, Entertainmen
 - Fields, in order:
   1. **Amount** — required. Decimal pad keyboard, auto-focused on open. Validate > 0 (always entered as a positive number).
   2. **Expense / Refund toggle** — explicit segmented control, defaulting to **Expense**. Selecting **Refund** sets `kind = .refund`; the amount preview flips to negative so the effect is obvious. This is the *only* way to record a negative value — the amount field itself rejects minus signs.
-  3. **Category** — required. Single-selection dropdown (`Picker`, menu style) over the §3.3 list, defaulting to "Other".
+  3. **Category** — required. Single-selection dropdown (`Picker`, menu style) over the §3.3 list. On a new entry it follows the merchant field (the §3.3 suggestion, else "Other") until the user picks a category by hand. A manual pick wins, and editing an existing entry never auto-changes its category.
   4. **Source** — required. Text field with quick-pick chips of recently used sources (derived from existing data, no separate table).
   5. **Date** — optional. Compact `DatePicker`, pre-filled with today. If untouched, today's date is used.
   6. **Merchant description** — optional. Free text.
@@ -135,7 +135,7 @@ See §5 for the full design. Summary of behavior:
 
 - The app exposes a **"Log Transaction"** App Intent accepting `amount`, `merchant`, and `card` parameters.
 - The user configures a **Shortcuts personal automation** with the **Transaction** trigger (Wallet), set to "Run Immediately", which passes the transaction's amount, merchant name, and card into the intent.
-- The intent writes a `Transaction` with `entryMethod = .automation`, `source` = card name (mapped, see §5.3), `merchant` = merchant name, `date` = now, `kind` = `expense`, `category` = `"Other"` (recategorize by tapping the row).
+- The intent writes a `Transaction` with `entryMethod = .automation`, `source` = card name (mapped, see §5.3), `merchant` = merchant name, `date` = now, `kind` = `expense`, `category` = the §3.3 suggestion for the merchant, else `"Other"` (recategorize by tapping the row).
 - The app includes an in-app **setup guide screen** with step-by-step instructions (and a button deep-linking to the Shortcuts app), since the automation must be created manually by the user — iOS does not allow apps to install automations programmatically.
 
 ### FR-5: CSV export

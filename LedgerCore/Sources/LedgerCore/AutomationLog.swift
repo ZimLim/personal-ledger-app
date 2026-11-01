@@ -25,16 +25,20 @@ public enum AutomationLogDecision: Equatable, Sendable {
 }
 
 /// Pure rules for automation logging (RFC §FR-4): turn a trigger's raw values
-/// into an `automation` expense dated now, categorised "Other", with the card
-/// mapped to a source — or decide it must not be written. The app target's
+/// into an `automation` expense dated now, categorised from the merchant's
+/// history (falling back to `SpendingCategory.default`), with the card mapped to
+/// a source — or decide it must not be written. The app target's
 /// `TransactionLogService` supplies the nearby entries and persists the result.
 public enum AutomationLog {
 
     /// - Parameter existing: entries to dedupe against; only those within
     ///   `DuplicateGuard.defaultWindow` of `now` can matter.
+    /// - Parameter history: past entries, newest first, used to suggest the
+    ///   category from what was last chosen for this merchant.
     public static func decide(
         _ request: AutomationLogRequest,
         existing: [TransactionData],
+        history: [TransactionData] = [],
         cardMapping: [String: String] = [:],
         now: Date,
         locale: Locale = .current
@@ -51,7 +55,8 @@ public enum AutomationLog {
             date: now,
             merchant: merchant.isEmpty ? nil : merchant,
             kind: .expense,
-            category: SpendingCategory.default.rawValue,
+            category: CategorySuggester.suggest(merchant: merchant, in: history)
+                ?? SpendingCategory.default.rawValue,
             entryMethod: .automation,
             createdAt: now
         )

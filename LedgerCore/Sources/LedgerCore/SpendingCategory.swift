@@ -14,7 +14,7 @@ public enum SpendingCategory: String, CaseIterable, Sendable {
     case travel = "Travel"
     case other = "Other"
 
-    /// Default for new manual entries and all automation-logged entries.
+    /// Fallback when no category can be suggested for a new entry.
     public static let `default`: SpendingCategory = .other
 
     /// Human-readable label (identical to the stored raw value in v1).

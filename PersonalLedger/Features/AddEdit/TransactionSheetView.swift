@@ -45,7 +45,10 @@ struct TransactionSheetView: View {
                         .fontWeight(.semibold)
                 }
             }
-            .onAppear { amountFocused = true }
+            .onAppear {
+                amountFocused = true
+                model.loadHistory()
+            }
         }
     }
 
@@ -85,13 +88,17 @@ struct TransactionSheetView: View {
     private var merchantSection: some View {
         Section("Merchant") {
             TextField("e.g. Village Grocer", text: $model.draft.merchant)
+                .onChange(of: model.draft.merchant) { model.merchantChanged() }
             SuggestionChips(values: recentMerchants) { model.draft.merchant = $0 }
         }
     }
 
     private var categorySection: some View {
         Section {
-            Picker("Category", selection: $model.draft.category) {
+            Picker("Category", selection: Binding(
+                get: { model.draft.category },
+                set: { model.pickCategory($0) }
+            )) {
                 ForEach(SpendingCategory.allCases, id: \.self) { category in
                     Text(category.displayName).tag(category.rawValue)
                 }

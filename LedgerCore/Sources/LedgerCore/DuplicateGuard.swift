@@ -26,7 +26,7 @@ public enum DuplicateGuard {
 
     /// Merchant comparison ignores surrounding whitespace and case; a missing
     /// merchant is treated as empty (automation entries may omit it — RFC §8).
-    private static func normalizedMerchant(_ merchant: String?) -> String {
+    static func normalizedMerchant(_ merchant: String?) -> String {
         (merchant ?? "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
