@@ -107,7 +107,7 @@ PersonalLedgerUITests/               # critical-flow XCUITests
 
 ### Phase 3 (M3) — App Intent + automation `[HIGH]` — **DONE 2026-10-08 (on-device check pending)**
 - `TransactionLogService` (pure, testable) holds the write + **dedupe** logic; `LogTransactionIntent` is a thin wrapper (in app target, `openAppWhenRun=false`).
-- Maps `card → source` via `CardMappingStore` (fallback `"Apple Pay – <card>"`); sets `entryMethod=.automation`, `category="Other"`, `kind=.expense`, `date=now`.
+- Maps `card → source` via `CardMappingStore` (fallback `"Apple Pay – <card>"`); sets `entryMethod=.automation`, `category` suggested from the merchant's history (else `"Other"`), `kind=.expense`, `date=now`.
 - **Dedupe guard:** reject matching `(amount, merchant, ±60s)` automation entry — unit-tested.
 - `AutomationSetupView`: step-by-step guide + deep link to Shortcuts (iOS cannot install automations programmatically).
 

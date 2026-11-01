@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import LedgerCore
+import os
 
 /// Drives the Add/Edit sheet (RFC §FR-2, §FR-7). Holds an editable
 /// `TransactionDraft`, exposes validity/change state for the Save button, and
@@ -19,6 +20,13 @@ final class TransactionFormModel {
     private let editingModel: Transaction?
     private let original: TransactionData?
 
+    private static let logger = Logger(subsystem: "com.hazim.personalledger", category: "TransactionFormModel")
+
+    /// True while the category follows the merchant: new entries only, until the
+    /// user picks a category by hand. Editing never auto-changes the category.
+    @ObservationIgnored private var autoCategorize: Bool
+    @ObservationIgnored private var history: [TransactionData] = []
+
     init(mode: Mode, repository: TransactionRepository) {
         self.repository = repository
         switch mode {
@@ -26,11 +34,35 @@ final class TransactionFormModel {
             self.draft = TransactionDraft(date: date)
             self.editingModel = nil
             self.original = nil
+            self.autoCategorize = true
         case .edit(let model):
             self.draft = TransactionDraft(editing: model.data)
             self.editingModel = model
             self.original = model.data
+            self.autoCategorize = false
         }
+    }
+
+    /// Loaded on appear rather than in `init`, which SwiftUI can re-run while the
+    /// sheet is open.
+    func loadHistory() {
+        guard autoCategorize else { return }
+        do {
+            history = try repository.allData()
+        } catch {
+            Self.logger.error("Category history unavailable: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    func merchantChanged() {
+        guard autoCategorize else { return }
+        draft.category = CategorySuggester.suggest(merchant: draft.merchant, in: history)
+            ?? SpendingCategory.default.rawValue
+    }
+
+    func pickCategory(_ category: String) {
+        autoCategorize = false
+        draft.category = category
     }
 
     var isEditing: Bool { editingModel != nil }

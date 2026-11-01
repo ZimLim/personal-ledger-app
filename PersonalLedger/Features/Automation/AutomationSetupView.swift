@@ -30,7 +30,7 @@ struct AutomationSetupView: View {
 
     private static let notes: [String] = [
         "Only Apple Pay payments are logged. Physical-card purchases, online payments and refunds still need adding by hand.",
-        "Entries arrive under **Other**. Tap a row to change its category.",
+        "Entries use the category last chosen for that merchant, or **Other** for a new merchant. Tap a row to change it.",
         "Cards are labelled “Apple Pay – card name” until you rename them in **Settings → Card names**.",
         "If the automation fires twice for one payment, the repeat is skipped (same amount and merchant within a minute).",
     ]
