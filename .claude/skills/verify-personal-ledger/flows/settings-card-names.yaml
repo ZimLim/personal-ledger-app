@@ -1,0 +1,64 @@
+# Start from an empty ledger: run `verify.sh reset` first.
+# Ends with one saved mapping, BigPayVisa -> BigPay, for `verify.sh defaults` to confirm.
+appId: com.hazim.personalledger
+---
+- launchApp
+
+# Settings opens from the foot of the history drawer.
+- tapOn: "Ledger history"
+- tapOn: "Settings"
+- assertVisible: "Apple Pay"
+- takeScreenshot: 01-settings
+
+# The auto-logging guide.
+- tapOn: "Set up auto-logging"
+- assertVisible: "Open Shortcuts"
+- assertVisible: "Steps"
+- takeScreenshot: 02-auto-logging-guide
+- tapOn: "Settings"
+
+# Save needs both fields, and a mapping can be removed by swiping.
+- tapOn: "Card names"
+- assertVisible: "Add Card"
+- tapOn: "Add Card"
+- assertVisible:
+    text: "Save"
+    enabled: false
+- tapOn: "e.g. BigPay Visa"
+- inputText: "OldCard"
+- pressKey: Enter
+- tapOn: "e.g. BigPay"
+- inputText: "OldSource"
+- pressKey: Enter
+- tapOn: "Save"
+- assertVisible: "OldCard"
+# The row reads as one accessibility element, "<card>, <source>".
+- swipe:
+    from:
+      text: "OldCard, OldSource"
+    direction: LEFT
+- tapOn: "Delete"
+- assertNotVisible: "OldCard"
+
+# Save the mapping that stays.
+- tapOn: "Add Card"
+- tapOn: "e.g. BigPay Visa"
+- inputText: "BigPayVisa"
+- pressKey: Enter
+- tapOn: "e.g. BigPay"
+- inputText: "BigPay"
+- pressKey: Enter
+- takeScreenshot: 03-card-form
+- tapOn: "Save"
+- assertVisible: "BigPayVisa, BigPay"
+- takeScreenshot: 04-card-saved
+
+# It survives a relaunch.
+- stopApp
+- launchApp
+- tapOn: "Ledger history"
+- tapOn: "Settings"
+- tapOn: "Card names"
+- assertVisible: "BigPayVisa, BigPay"
+- assertNotVisible: "OldCard.*"
+- takeScreenshot: 05-card-after-relaunch

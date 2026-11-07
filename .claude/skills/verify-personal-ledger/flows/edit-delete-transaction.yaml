@@ -1,0 +1,94 @@
+# Start from an empty ledger: run `verify.sh reset` first.
+appId: com.hazim.personalledger
+---
+- launchApp
+- runFlow:
+    file: lib/add-entry.yaml
+    env:
+      AMOUNT_KEY_1: "1"
+      AMOUNT_KEY_2: "2"
+      AMOUNT_KEY_3: "5"
+      AMOUNT_KEY_4: "0"
+      AMOUNT_TEXT: "12.50"
+      MERCHANT: "Kopitiam"
+      SOURCE: "Cash"
+- runFlow:
+    file: lib/add-entry.yaml
+    env:
+      AMOUNT_KEY_1: "0"
+      AMOUNT_KEY_2: "7"
+      AMOUNT_KEY_3: "0"
+      AMOUNT_KEY_4: "0"
+      AMOUNT_TEXT: "7.00"
+      MERCHANT: "Tesco"
+      SOURCE: "Cash"
+- assertVisible: "RM 19.50"
+
+# Edit: tap a row, change its amount, save.
+- tapOn: "Kopitiam"
+- assertVisible: "Edit Transaction"
+- assertVisible:
+    text: "Save"
+    enabled: false
+- tapOn: "12.50"
+- eraseText
+- tapOn: "1"
+- tapOn: "8"
+- tapOn: "0"
+- tapOn: "0"
+- assertVisible: "18.00"
+- takeScreenshot: 01-edit-form
+- tapOn: "Save"
+- assertVisible: "RM 18.00"
+- assertVisible: "RM 25.00"
+- takeScreenshot: 02-edited
+
+# Delete by swipe. Start on the amount: from the merchant the swipe is too short
+# and counts as a tap, which opens the edit sheet. Dismissing the dialog keeps the row.
+- swipe:
+    from:
+      text: "RM 7.00"
+    direction: LEFT
+- tapOn: "Delete"
+- assertVisible: "Delete this transaction\\?"
+- takeScreenshot: 03-delete-dialog
+# On iOS 26 this dialog is a popover with no Cancel button. Tapping outside cancels it.
+- tapOn:
+    point: "50%,15%"
+- assertNotVisible: "Delete this transaction\\?"
+- assertVisible: "Tesco"
+
+# Confirming removes it and lowers the total.
+- swipe:
+    from:
+      text: "RM 7.00"
+    direction: LEFT
+- tapOn: "Delete"
+- assertVisible: "Delete this transaction\\?"
+- tapOn:
+    text: "Delete"
+    below: "Delete this transaction\\?"
+- assertNotVisible: "Tesco"
+- assertVisible: "RM 18.00"
+- takeScreenshot: 04-deleted-by-swipe
+
+# Delete from inside the edit sheet. The sheet opens with the number pad up, and
+# that pad has its own Delete key, so dismiss it through the merchant field first.
+- tapOn: "Kopitiam"
+- tapOn: "e.g. Village Grocer"
+- pressKey: Enter
+- scrollUntilVisible:
+    element: "Delete Transaction"
+    direction: DOWN
+- tapOn: "Delete Transaction"
+- tapOn:
+    text: "Delete"
+    below: "Delete this transaction\\?"
+- assertVisible: "No transactions yet this month"
+- assertVisible: "RM 0.00"
+- takeScreenshot: 05-deleted-from-sheet
+
+# The deletions survive a relaunch.
+- stopApp
+- launchApp
+- assertVisible: "No transactions yet this month"

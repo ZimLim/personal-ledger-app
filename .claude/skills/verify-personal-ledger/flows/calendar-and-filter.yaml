@@ -1,0 +1,67 @@
+# Start from an empty ledger: run `verify.sh reset` first.
+appId: com.hazim.personalledger
+---
+- launchApp
+- runFlow:
+    file: lib/add-entry.yaml
+    env:
+      AMOUNT_KEY_1: "1"
+      AMOUNT_KEY_2: "2"
+      AMOUNT_KEY_3: "5"
+      AMOUNT_KEY_4: "0"
+      AMOUNT_TEXT: "12.50"
+      MERCHANT: "Kopitiam"
+      SOURCE: "Cash"
+- runFlow:
+    file: lib/add-entry.yaml
+    env:
+      AMOUNT_KEY_1: "3"
+      AMOUNT_KEY_2: "0"
+      AMOUNT_KEY_3: "0"
+      AMOUNT_KEY_4: "0"
+      AMOUNT_TEXT: "30.00"
+      MERCHANT: "Grab"
+      SOURCE: "Card"
+- assertVisible: "RM 42.50"
+
+# The calendar shows today's total, and the toggle goes back to the list.
+- tapOn: "Show calendar"
+- assertVisible: ".*RM 42\\.50, today"
+- takeScreenshot: 01-calendar
+- tapOn: "Show list"
+- assertVisible: "Kopitiam"
+
+# Filtering by payment method narrows the rows and the running total.
+- tapOn: "Filter and sort"
+- takeScreenshot: 02-filter-menu
+- tapOn: "Card"
+- assertVisible: "Grab"
+- assertNotVisible: "Kopitiam"
+- assertVisible: "RM 30.00"
+- takeScreenshot: 03-filtered-to-card
+
+# The calendar follows the same filter, so its days add up to the total.
+- tapOn: "Show calendar"
+- assertVisible: ".*RM 30\\.00, today"
+- takeScreenshot: 04-calendar-filtered
+- tapOn: "Show list"
+
+# Clearing the filter brings everything back.
+- tapOn: "Filter and sort"
+- tapOn: "All methods"
+- assertVisible: "Kopitiam"
+- assertVisible: "RM 42.50"
+
+# Sorting reorders the rows.
+- tapOn: "Filter and sort"
+- tapOn: "Amount: low to high"
+- assertVisible:
+    text: "Grab"
+    below: "Kopitiam"
+- takeScreenshot: 05-sorted-low-to-high
+- tapOn: "Filter and sort"
+- tapOn: "Amount: high to low"
+- assertVisible:
+    text: "Kopitiam"
+    below: "Grab"
+- takeScreenshot: 06-sorted-high-to-low

@@ -1,0 +1,7 @@
+# Fills Source and saves. The keyboard must already be down.
+appId: com.hazim.personalledger
+---
+- tapOn: "e.g. Maybank debit, Cash"
+- inputText: "Cash"
+- pressKey: Enter
+- tapOn: "Add"

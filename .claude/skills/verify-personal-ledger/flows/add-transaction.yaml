@@ -1,0 +1,69 @@
+# Start from an empty ledger: run `verify.sh reset` first.
+appId: com.hazim.personalledger
+---
+- launchApp
+- assertVisible: "No transactions yet this month"
+- assertVisible: "RM 0.00"
+- takeScreenshot: 01-empty-ledger
+
+# Add stays disabled until the form is valid.
+- tapOn: "Add Transaction"
+- assertVisible:
+    text: "Add"
+    enabled: false
+- tapOn: "0.00"
+- tapOn: "1"
+- tapOn: "2"
+- tapOn: "5"
+- tapOn: "0"
+- assertVisible: "12.50"
+- assertVisible: "Recorded as RM 12.50"
+- tapOn: "e.g. Village Grocer"
+- inputText: "Kopitiam"
+- pressKey: Enter
+- tapOn: "e.g. Maybank debit, Cash"
+- inputText: "Cash"
+- pressKey: Enter
+- takeScreenshot: 02-form-filled
+- tapOn: "Add"
+
+- assertVisible: "Kopitiam"
+- assertVisible: "Day .*"
+- assertVisible: "RM 12.50"
+- takeScreenshot: 03-row-added
+
+# A refund is recorded as negative and lowers the running total.
+- tapOn: "Add Transaction"
+- tapOn: "0.00"
+- tapOn: "2"
+- tapOn: "5"
+- tapOn: "0"
+- tapOn: "Refund"
+- assertVisible: "Recorded as -RM 2.50"
+- tapOn: "e.g. Village Grocer"
+- inputText: "Tesco"
+- pressKey: Enter
+- tapOn: "e.g. Maybank debit, Cash"
+- inputText: "Cash"
+- pressKey: Enter
+- tapOn: "Add"
+- assertVisible: "Tesco"
+- assertVisible: "Refund"
+- assertVisible: "-RM 2.50"
+- assertVisible: "RM 10.00"
+- takeScreenshot: 04-refund-added
+
+# Cancel throws the draft away.
+- tapOn: "Add Transaction"
+- tapOn: "e.g. Village Grocer"
+- inputText: "Discarded"
+- tapOn: "Cancel"
+- assertNotVisible: "Discarded"
+
+# Both rows survive a relaunch.
+- stopApp
+- launchApp
+- assertVisible: "Kopitiam"
+- assertVisible: "Tesco"
+- assertVisible: "RM 10.00"
+- takeScreenshot: 05-after-relaunch
