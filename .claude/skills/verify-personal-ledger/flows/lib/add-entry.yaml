@@ -1,0 +1,22 @@
+# Adds one transaction dated today. Needs AMOUNT_KEY_1 to AMOUNT_KEY_4, AMOUNT_TEXT,
+# MERCHANT and SOURCE. Run through runFlow with env. Single-word values avoid keyboard
+# autocorrect. Amounts are tapped key by key: inputText types fast enough to lose digits
+# (see the add-transaction gotchas).
+appId: com.hazim.personalledger
+---
+- tapOn: "Add Transaction"
+- tapOn: "0.00"
+- tapOn: ${AMOUNT_KEY_1}
+- tapOn: ${AMOUNT_KEY_2}
+- tapOn: ${AMOUNT_KEY_3}
+- tapOn: ${AMOUNT_KEY_4}
+- assertVisible: "Recorded as RM ${AMOUNT_TEXT}"
+- tapOn: "e.g. Village Grocer"
+- inputText: ${MERCHANT}
+# Source sits behind the keyboard, so a tap on it lands on a key. Return dismisses it.
+- pressKey: Enter
+- tapOn: "e.g. Maybank debit, Cash"
+- inputText: ${SOURCE}
+- pressKey: Enter
+- tapOn: "Add"
+- assertVisible: ${MERCHANT}

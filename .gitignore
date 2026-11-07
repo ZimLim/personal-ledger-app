@@ -68,3 +68,13 @@ fastlane/test_output
 
 # iOS development
 .DS_Store
+
+# Screenshots and verification evidence (verify.sh, deploy.sh --shot).
+# Regenerable by re-running the flow, so kept local only.
+docs/screenshots/
+
+# Test logs and results
+*.log
+*.xcresult
+.maestro/
+test-results/

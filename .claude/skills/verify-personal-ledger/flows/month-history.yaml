@@ -1,0 +1,71 @@
+# Start from an empty ledger: run `verify.sh reset` first.
+# THIS_MONTH, THIS_YEAR, LAST_MONTH and LAST_MONTH_YEAR come from `verify.sh flow`.
+appId: com.hazim.personalledger
+---
+- launchApp
+- runFlow:
+    file: lib/add-entry.yaml
+    env:
+      AMOUNT_KEY_1: "1"
+      AMOUNT_KEY_2: "2"
+      AMOUNT_KEY_3: "5"
+      AMOUNT_KEY_4: "0"
+      AMOUNT_TEXT: "12.50"
+      MERCHANT: "Kopitiam"
+      SOURCE: "Cash"
+
+# Log an entry into last month through the form's date picker.
+- tapOn: "Add Transaction"
+- tapOn: "0.00"
+- tapOn: "3"
+- tapOn: "0"
+- tapOn: "0"
+- tapOn: "0"
+- assertVisible: "Recorded as RM 30.00"
+- tapOn: "e.g. Village Grocer"
+- inputText: "Grab"
+- pressKey: Enter
+- tapOn: "e.g. Maybank debit, Cash"
+- inputText: "Card"
+- pressKey: Enter
+- tapOn: "Date Picker"
+- tapOn:
+    id: "DatePicker.PreviousMonth"
+- tapOn: ".*, ${LAST_MONTH} 15"
+- takeScreenshot: 01-picked-last-month
+- tapOn:
+    id: "PopoverDismissRegion"
+    point: "50%,10%"
+- tapOn: "Add"
+
+# It belongs to last month, so this month's ledger doesn't change.
+- assertVisible: "${THIS_MONTH} ${THIS_YEAR}"
+- assertVisible: "Kopitiam"
+- assertNotVisible: "Grab"
+- assertVisible: "RM 12.50"
+- takeScreenshot: 02-this-month-unchanged
+
+# The drawer lists both months with their own totals.
+- tapOn: "Ledger history"
+- assertVisible: "Ledgers"
+- assertVisible: "\\(current\\)"
+- assertVisible: "${THIS_MONTH}"
+- assertVisible: "${LAST_MONTH}"
+- assertVisible: "RM 30.00"
+- takeScreenshot: 03-drawer
+
+# Choosing a month switches the ledger and closes the drawer.
+- tapOn: "${LAST_MONTH}"
+- assertNotVisible: "Ledgers"
+- assertVisible: "${LAST_MONTH} ${LAST_MONTH_YEAR}"
+- assertVisible: "Grab"
+- assertNotVisible: "Kopitiam"
+- assertVisible: "Day 15"
+- takeScreenshot: 04-last-month-ledger
+
+# And back again.
+- tapOn: "Ledger history"
+- tapOn: "${THIS_MONTH}"
+- assertVisible: "${THIS_MONTH} ${THIS_YEAR}"
+- assertVisible: "Kopitiam"
+- takeScreenshot: 05-back-to-this-month

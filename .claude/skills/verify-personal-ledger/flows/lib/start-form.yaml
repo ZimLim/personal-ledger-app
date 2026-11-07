@@ -1,0 +1,10 @@
+# Opens the Add form and enters RM 10.00. Amounts are tapped key by key (see the add-transaction gotchas).
+appId: com.hazim.personalledger
+---
+- tapOn: "Add Transaction"
+- tapOn: "0.00"
+- tapOn: "1"
+- tapOn: "0"
+- tapOn: "0"
+- tapOn: "0"
+- assertVisible: "Recorded as RM 10.00"

@@ -68,19 +68,23 @@ case "$TARGET" in
     log "Finding a connected iPhone"
     UDID="${DEVICE_UDID:-}"
     if [[ -z "$UDID" ]]; then
+      # Newer devicectl leaves the Reality column blank for real devices, so match
+      # "not simulated" rather than "physical"; the UDID pattern skips the header.
       UDID="$(xcrun devicectl list devices 2>/dev/null \
-        | awk 'tolower($0) ~ /physical/ && tolower($0) !~ /simulated/ {
+        | awk 'tolower($0) !~ /simulated/ {
             for (i=1;i<=NF;i++) if ($i ~ /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}$/ || $i ~ /^[0-9A-Fa-f]{40}$/) { print $i; exit }
           }')"
     fi
     [[ -n "$UDID" ]] || { err "No connected iPhone. Plug in via USB, unlock, tap Trust, and enable Developer Mode (Settings > Privacy & Security). You can also pass DEVICE_UDID=<udid>."; exit 1; }
     log "Device UDID: $UDID"
 
+    # Clean first: after the weekly profile expiry an incremental build embeds the
+    # new profile without re-signing, leaving a stale seal that iOS refuses to launch.
     log "Building + signing (team $DEVELOPMENT_TEAM)"
     xcodebuild -scheme "$SCHEME" -configuration "$CONFIG" -destination "id=$UDID" \
       -allowProvisioningUpdates \
       DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" CODE_SIGN_STYLE=Automatic \
-      build >/dev/null
+      clean build >/dev/null
 
     APP="$(app_path "id=$UDID")"
     log "Installing to device: $APP"

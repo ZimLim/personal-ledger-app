@@ -1,0 +1,148 @@
+# Start from an empty ledger: run `verify.sh reset` first.
+appId: com.hazim.personalledger
+---
+- launchApp
+
+# A merchant with no history stays on Other.
+- runFlow: lib/start-form.yaml
+- tapOn: "e.g. Village Grocer"
+- inputText: "Kopitiam"
+- pressKey: Enter
+- assertVisible: "Category, Other"
+- takeScreenshot: 01-no-history-stays-other
+
+# Picking by hand teaches the merchant.
+- tapOn: "Category, Other"
+- tapOn: "Food"
+- assertVisible: "Category, Food"
+- runFlow: lib/finish-form.yaml
+- assertVisible: "Kopitiam"
+
+# Typing the full name fills it in, and only the full name matches.
+- runFlow: lib/start-form.yaml
+- tapOn: "e.g. Village Grocer"
+- inputText: "Kopi"
+- assertVisible: "Category, Other"
+- inputText: "tiam"
+- assertVisible: "Category, Food"
+- takeScreenshot: 02-full-name-fills-food
+- eraseText: 1
+- assertVisible: "Category, Other"
+- pressKey: Enter
+- tapOn: "Cancel"
+
+# Case does not matter.
+- runFlow: lib/start-form.yaml
+- tapOn: "e.g. Village Grocer"
+- inputText: "KOPITIAM"
+- assertVisible: "Category, Food"
+- pressKey: Enter
+- tapOn: "Cancel"
+
+# A recent-merchant chip counts as typing.
+- runFlow: lib/start-form.yaml
+- tapOn: "Kopitiam"
+- assertVisible: "Category, Food"
+- takeScreenshot: 03-chip-fills-food
+- tapOn: "Cancel"
+
+# A manual pick survives a merchant change.
+- runFlow: lib/start-form.yaml
+- tapOn: "e.g. Village Grocer"
+- inputText: "Kopitiam"
+- pressKey: Enter
+- assertVisible: "Category, Food"
+- tapOn: "Category, Food"
+- tapOn: "Health"
+- assertVisible: "Category, Health"
+- tapOn: "Kopitiam"
+- eraseText: 20
+- inputText: "Tesco"
+- pressKey: Enter
+- assertVisible: "Category, Health"
+- takeScreenshot: 04-manual-pick-wins
+- tapOn: "Cancel"
+
+# Choosing Other on purpose counts, even though it is already showing.
+- runFlow: lib/start-form.yaml
+- tapOn: "e.g. Village Grocer"
+- pressKey: Enter
+- tapOn: "Category, Other"
+- tapOn:
+    text: "Other"
+    below: "Travel"
+- tapOn: "e.g. Village Grocer"
+- inputText: "Kopitiam"
+- pressKey: Enter
+- assertVisible: "Category, Other"
+- takeScreenshot: 05-chosen-other-stays
+- tapOn: "Cancel"
+
+# Fixing the merchant's newest row changes the next suggestion.
+- tapOn: "Kopitiam"
+- assertVisible: "Edit Transaction"
+# The edit form opens with the number pad covering the category row, and that pad has no return key.
+- tapOn:
+    text: "Kopitiam"
+    index: 0
+- pressKey: Enter
+- tapOn: "Category, Food"
+- tapOn: "Groceries"
+- tapOn: "Save"
+- runFlow: lib/start-form.yaml
+- tapOn: "e.g. Village Grocer"
+- inputText: "Kopitiam"
+- pressKey: Enter
+- assertVisible: "Category, Groceries"
+- takeScreenshot: 06-fix-changes-suggestion
+- runFlow: lib/finish-form.yaml
+
+# A newer row saved as Other does not teach the lookup.
+- runFlow: lib/start-form.yaml
+- tapOn: "e.g. Village Grocer"
+- inputText: "Grab"
+- pressKey: Enter
+- tapOn: "Category, Other"
+- tapOn: "Travel"
+- runFlow: lib/finish-form.yaml
+- runFlow: lib/start-form.yaml
+- tapOn: "e.g. Village Grocer"
+- inputText: "Grab"
+- pressKey: Enter
+- assertVisible: "Category, Travel"
+- tapOn: "Category, Travel"
+- tapOn:
+    text: "Other"
+    below: "Travel"
+- assertVisible: "Category, Other"
+- runFlow: lib/finish-form.yaml
+- runFlow: lib/start-form.yaml
+- tapOn: "e.g. Village Grocer"
+- inputText: "Grab"
+- pressKey: Enter
+- assertVisible: "Category, Travel"
+- takeScreenshot: 07-other-does-not-teach
+- tapOn: "Cancel"
+
+# Editing an existing row never auto-changes its category.
+- tapOn:
+    text: "Kopitiam"
+    index: 0
+- assertVisible: "Edit Transaction"
+- assertVisible: "Category, Groceries"
+- tapOn:
+    text: "Kopitiam"
+    index: 0
+- eraseText: 20
+- inputText: "Grab"
+- pressKey: Enter
+- assertVisible: "Category, Groceries"
+- takeScreenshot: 08-edit-does-not-follow
+- tapOn: "Cancel"
+
+# Saved categories survive a relaunch.
+- stopApp
+- launchApp
+- assertVisible: "Kopitiam"
+- assertVisible: "Grab"
+- takeScreenshot: 09-after-relaunch
